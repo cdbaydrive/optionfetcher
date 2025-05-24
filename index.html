@@ -1,0 +1,377 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Option Chain Fetcher</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .input-container {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            width: 200px;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .tabs {
+            display: flex;
+            overflow-x: auto;
+            margin-bottom: 10px;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            padding-bottom: 10px;
+        }
+        .tab {
+            padding: 10px 20px;
+            margin: 0 5px;
+            background-color: #ddd;
+            border-radius: 5px 5px 0 0;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .tab.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .tab span {
+            display: block;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+        .tab.active span {
+            color: #fff;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+            font-size: 14px;
+        }
+        th {
+            background-color: #f0f0f0;
+            color: #333;
+            font-weight: normal;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .strike {
+            background-color: #f0f0f0;
+        }
+        .itm {
+            background-color: #e6f0fa;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .loading {
+            text-align: center;
+            margin-top: 20px;
+            font-style: italic;
+        }
+        /* Ensure .atm overrides other cell styles */
+        .atm td {
+            background-color: #000 !important;
+            color: white !important;
+        }
+    </style>
+</head>
+<body>
+    <h1>Option Chain Fetcher</h1>
+    <div class="input-container">
+        <input type="text" id="symbolInput" placeholder="Enter stock symbol (e.g., TQQQ)" value="TQQQ" />
+        <button onclick="fetchOptionChain()">Fetch Option Chain</button>
+    </div>
+    <div id="loading" class="loading" style="display: none;">Loading...</div>
+    <div id="error" class="error" style="display: none;"></div>
+    <div id="tabs" class="tabs"></div>
+    <table id="optionTable" style="display: none;">
+        <thead>
+            <tr>
+                <th colspan="4">CALLS</th>
+                <th rowspan="2" class="strike">STRIKE</th>
+                <th colspan="4">PUTS</th>
+            </tr>
+            <tr>
+                <th>Bid</th>
+                <th>Bid (%)</th>
+                <th>Strike / Stock</th>
+                <th>Delta</th>
+                <th>Bid</th>
+                <th>Bid (%)</th>
+                <th>Strike / Stock</th>
+                <th>Delta</th>
+            </tr>
+        </thead>
+        <tbody id="optionTableBody"></tbody>
+    </table>
+
+    <script>
+        const API_KEY = 'cochuehr01qj8q79ucegcochuehr01qj8q79ucf0';
+        const BASE_URL = 'https://finnhub.io/api/v1';
+        let allOptions = [];
+        let currentPrice = 0;
+
+        // Helper function to calculate days until expiration
+        function daysUntilExpiration(expirationDate) {
+            const today = new Date('2025-05-24');
+            const expDate = new Date(expirationDate);
+            const diffTime = expDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays;
+        }
+
+        // Helper function to format date as "MMMDD'YY"
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const options = { month: 'short', day: '2-digit' };
+            const formatted = date.toLocaleDateString('en-US', options).replace(' ', '');
+            const year = date.getFullYear().toString().slice(-2);
+            return `${formatted}'${year}`;
+        }
+
+        async function fetchOptionChain() {
+            const symbol = document.getElementById('symbolInput').value.trim().toUpperCase();
+            const errorDiv = document.getElementById('error');
+            const loadingDiv = document.getElementById('loading');
+            const optionTable = document.getElementById('optionTable');
+            const tabsDiv = document.getElementById('tabs');
+
+            if (!symbol) {
+                errorDiv.textContent = 'Please enter a valid stock symbol.';
+                errorDiv.style.display = 'block';
+                optionTable.style.display = 'none';
+                tabsDiv.innerHTML = '';
+                return;
+            }
+
+            errorDiv.style.display = 'none';
+            loadingDiv.style.display = 'block';
+            optionTable.style.display = 'none';
+            tabsDiv.innerHTML = '';
+
+            try {
+                // Fetch current stock price to determine ATM strike
+                const quoteResponse = await fetch(`${BASE_URL}/quote?symbol=${symbol}&token=${API_KEY}`);
+                const quoteData = await quoteResponse.json();
+                if (quoteData.error || !quoteData.c) {
+                    errorDiv.textContent = 'Error fetching stock price.';
+                    errorDiv.style.display = 'block';
+                    loadingDiv.style.display = 'none';
+                    return;
+                }
+                currentPrice = quoteData.c;
+
+                // Fetch option chain
+                const response = await fetch(`${BASE_URL}/stock/option-chain?symbol=${symbol}&token=${API_KEY}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    errorDiv.textContent = data.error || 'Error fetching option chain data.';
+                    errorDiv.style.display = 'block';
+                    loadingDiv.style.display = 'none';
+                    return;
+                }
+
+                allOptions = data.data || [];
+                if (!allOptions.length) {
+                    errorDiv.textContent = 'No option chain data available for this symbol.';
+                    errorDiv.style.display = 'block';
+                    loadingDiv.style.display = 'none';
+                    return;
+                }
+
+                // Create tabs for each expiration date
+                allOptions.forEach((expData, index) => {
+                    const expiration = expData.expirationDate;
+                    const days = daysUntilExpiration(expiration);
+                    const formattedDate = formatDate(expiration);
+                    const tab = document.createElement('div');
+                    tab.className = 'tab';
+                    if (index === 0) tab.classList.add('active');
+                    tab.innerHTML = `${formattedDate}<span>${days} Days</span>`;
+                    tab.onclick = () => displayOptions(index);
+                    tabsDiv.appendChild(tab);
+                });
+
+                // Display the first expiration by default
+                displayOptions(0);
+                optionTable.style.display = 'table';
+                loadingDiv.style.display = 'none';
+            } catch (error) {
+                errorDiv.textContent = 'Failed to fetch data. Please try again later: ' + error.message;
+                errorDiv.style.display = 'block';
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        function displayOptions(expIndex) {
+            const optionTableBody = document.getElementById('optionTableBody');
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach((tab, index) => {
+                tab.classList.toggle('active', index === expIndex);
+            });
+
+            const expData = allOptions[expIndex];
+            const calls = expData.options.CALL || [];
+            const puts = expData.options.PUT || [];
+
+            // Create a map of strikes to pair calls and puts
+            const strikeMap = new Map();
+            calls.forEach(call => {
+                if (!strikeMap.has(call.strike)) {
+                    strikeMap.set(call.strike, { call: call, put: null });
+                }
+            });
+            puts.forEach(put => {
+                if (strikeMap.has(put.strike)) {
+                    strikeMap.get(put.strike).put = put;
+                } else {
+                    strikeMap.set(put.strike, { call: null, put: put });
+                }
+            });
+
+            // Sort strikes
+            const strikes = Array.from(strikeMap.keys()).sort((a, b) => a - b);
+            optionTableBody.innerHTML = '';
+
+            // Find the strike to highlight based on the range
+            let highlightStrike = null;
+            for (let i = 0; i < strikes.length - 1; i++) {
+                const lowerStrike = strikes[i];
+                const upperStrike = strikes[i + 1];
+                if (currentPrice >= lowerStrike && currentPrice < upperStrike) {
+                    highlightStrike = lowerStrike;
+                    break;
+                }
+            }
+            // Edge case: if currentPrice is above the highest strike or below the lowest strike
+            if (!highlightStrike) {
+                if (currentPrice < strikes[0]) {
+                    highlightStrike = strikes[0];
+                } else if (currentPrice >= strikes[strikes.length - 1]) {
+                    highlightStrike = strikes[strikes.length - 1];
+                }
+            }
+
+            strikes.forEach(strike => {
+                const data = strikeMap.get(strike);
+                const call = data.call || {};
+                const put = data.put || {};
+                const callBidPercent = call.bid && strike ? (call.bid / strike * 100).toFixed(2) : '-';
+                const putBidPercent = put.bid && strike ? (put.bid / strike * 100).toFixed(2) : '-';
+                const callStrikeStock = strike && currentPrice ? (((strike / currentPrice) - 1) * 100).toFixed(2) : '-';
+                const putStrikeStock = strike && currentPrice ? (((strike / currentPrice) - 1) * 100).toFixed(2) : '-';
+                const callDelta = call.greeks && call.greeks.delta ? (call.greeks.delta.toFixed(3) + ' €') : '-';
+                const putDelta = put.greeks && put.greeks.delta ? (put.greeks.delta.toFixed(3) + ' €') : '-';
+
+                // Determine if Call and Put are in the money
+                const isCallITM = strike < currentPrice;
+                const isPutITM = strike > currentPrice;
+
+                const row = document.createElement('tr');
+                if (strike === highlightStrike) {
+                    row.className = 'atm'; // Highlight the row between the strikes
+                }
+
+                // Build the row HTML step by step
+                let rowHTML = '';
+                rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${call.bid || '-'}</td>`;
+                rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callBidPercent}%</td>`;
+                rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callStrikeStock}%</td>`;
+                rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callDelta}</td>`;
+                rowHTML += `<td class="strike">${strike}</td>`;
+                rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${put.bid || '-'}</td>`;
+                rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putBidPercent}%</td>`;
+                rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putStrikeStock}%</td>`;
+                rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putDelta}</td>`;
+
+                row.innerHTML = rowHTML;
+                optionTableBody.appendChild(row);
+            });
+        }
+
+        // Fetch data on page load
+        fetchOptionChain();
+    </script>
+</body>
+</html>
