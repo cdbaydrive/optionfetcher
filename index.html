@@ -58,12 +58,15 @@
         .input-container {
             margin-bottom: 20px;
             text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
         input[type="text"] {
             padding: 10px;
             font-size: 16px;
             width: 200px;
-            margin-right: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
         }
@@ -78,6 +81,55 @@
         }
         button:hover {
             background-color: #0056b3;
+        }
+        /* Toggle switch styles */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .toggle-label {
+            font-size: 14px;
+            color: #333;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #007bff;
+        }
+        input:checked + .slider:before {
+            transform: translateX(20px);
         }
         .tabs {
             display: flex;
@@ -111,6 +163,12 @@
         .tab.active span {
             color: #fff;
         }
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+            position: relative;
+            background-color: white;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -125,9 +183,20 @@
             font-size: 14px;
         }
         th {
-            background-color: #f0f0f0;
+            background-color: #f0f0f0 !important;
             color: #333;
             font-weight: normal;
+            position: sticky;
+            top: 0;
+            z-index: 12;
+        }
+        thead tr:nth-child(2) th {
+            top: 35px;
+            z-index: 11;
+        }
+        thead {
+            background-color: #f0f0f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
         tr:nth-child(even) {
             background-color: #f9f9f9;
@@ -148,10 +217,17 @@
             margin-top: 20px;
             font-style: italic;
         }
-        /* Ensure .atm overrides other cell styles */
         .atm td {
             background-color: #000 !important;
             color: white !important;
+        }
+        table tbody tr:hover {
+            background-color: #f0f8ff;
+            outline: 2px solid #000000;
+            outline-offset: -2px;
+        }
+        td {
+            position: relative;
         }
     </style>
 </head>
@@ -160,36 +236,46 @@
     <div class="input-container">
         <input type="text" id="symbolInput" placeholder="Enter stock symbol (e.g., TQQQ)" value="TQQQ" />
         <button onclick="fetchOptionChain()">Fetch Option Chain</button>
+        <div class="toggle-container">
+            <label class="toggle-label">Auto-Refresh</label>
+            <label class="toggle-switch">
+                <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh()">
+                <span class="slider"></span>
+            </label>
+        </div>
     </div>
     <div id="loading" class="loading" style="display: none;">Loading...</div>
     <div id="error" class="error" style="display: none;"></div>
     <div id="tabs" class="tabs"></div>
-    <table id="optionTable" style="display: none;">
-        <thead>
-            <tr>
-                <th colspan="4">CALLS</th>
-                <th rowspan="2" class="strike">STRIKE</th>
-                <th colspan="4">PUTS</th>
-            </tr>
-            <tr>
-                <th>Bid</th>
-                <th>Bid (%)</th>
-                <th>Strike / Stock</th>
-                <th>Delta</th>
-                <th>Bid</th>
-                <th>Bid (%)</th>
-                <th>Strike / Stock</th>
-                <th>Delta</th>
-            </tr>
-        </thead>
-        <tbody id="optionTableBody"></tbody>
-    </table>
+    <div class="table-container">
+        <table id="optionTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th colspan="4">CALLS</th>
+                    <th rowspan="2" class="strike">STRIKE</th>
+                    <th colspan="4">PUTS</th>
+                </tr>
+                <tr>
+                    <th>Bid</th>
+                    <th>Bid (%)</th>
+                    <th>Strike / Stock</th>
+                    <th>Delta</th>
+                    <th>Bid</th>
+                    <th>Bid (%)</th>
+                    <th>Strike / Stock</th>
+                    <th>Delta</th>
+                </tr>
+            </thead>
+            <tbody id="optionTableBody"></tbody>
+        </table>
+    </div>
 
     <script>
         const API_KEY = 'cochuehr01qj8q79ucegcochuehr01qj8q79ucf0';
         const BASE_URL = 'https://finnhub.io/api/v1';
         let allOptions = [];
         let currentPrice = 0;
+        let autoRefreshInterval = null;
 
         // Helper function to calculate days until expiration
         function daysUntilExpiration(expirationDate) {
@@ -350,7 +436,7 @@
 
                 const row = document.createElement('tr');
                 if (strike === highlightStrike) {
-                    row.className = 'atm'; // Highlight the row between the strikes
+                    row.className = 'atm';
                 }
 
                 // Build the row HTML step by step
@@ -368,6 +454,21 @@
                 row.innerHTML = rowHTML;
                 optionTableBody.appendChild(row);
             });
+        }
+
+        // Auto-refresh toggle function
+        function toggleAutoRefresh() {
+            const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+            if (autoRefreshToggle.checked) {
+                // Start auto-refresh every 3 seconds
+                autoRefreshInterval = setInterval(fetchOptionChain, 3000);
+            } else {
+                // Stop auto-refresh
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
         }
 
         // Fetch data on page load
