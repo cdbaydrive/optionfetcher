@@ -195,7 +195,7 @@
             outline: 2px solid #000000;
             outline-offset: 0;
         }
-        td {
+        tdimiento {
             position: relative;
         }
         /* Mobile-specific styles */
@@ -203,16 +203,10 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
-            margin-top: 10px;
         }
         .mobile-table-container {
             width: 100%;
-        }
-        /* Ensure text wraps to avoid horizontal scrolling */
-        th, td {
-            white-space: normal;
-            word-wrap: break-word;
-            max-width: 80px; /* Limit column width for mobile */
+            overflow-x: auto;
         }
     </style>
 </head>
@@ -334,13 +328,13 @@
             const userAgent = navigator.userAgent || navigator.vendor || window.opera;
             const mobileRegex = /android|webos|iphone|ipod|blackberry|iemobile|opera mini/i;
             const isMobileUA = mobileRegex.test(userAgent);
-            const isSmallScreen = window.innerWidth <= 768;
+            const isSmallScreen = window.innerWidth <= 768; // Typical mobile breakpoint
             return isMobileUA || isSmallScreen;
         }
 
         // Helper function to calculate days until expiration
         function daysUntilExpiration(expirationDate) {
-            const today = new Date('2025-05-26');
+            const today = new Date('2025-05-24');
             const expDate = new Date(expirationDate);
             const diffTime = expDate - today;
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
