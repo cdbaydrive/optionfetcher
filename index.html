@@ -195,6 +195,17 @@
             outline: 2px solid #000000;
             outline-offset: 0;
         }
+        /* New class for touch-based highlighting */
+        table tbody tr.highlight {
+            background-color: #f0f8ff;
+            outline: 2px solid #000000;
+            outline-offset: -2px;
+        }
+        table tbody tr.atm.highlight {
+            background-color: #e6f0fa;
+            outline: 2px solid #000000;
+            outline-offset: 0;
+        }
         tdimiento {
             position: relative;
         }
@@ -535,6 +546,51 @@
                     callsTableBody.appendChild(callRow);
                 }
             });
+
+            // Add touch event listeners for mobile tables
+            if (isMobile) {
+                // Function to handle row highlighting
+                const highlightRow = (row, tableBody) => {
+                    // Remove highlight from other rows in the same table
+                    tableBody.querySelectorAll('tr').forEach(r => r.classList.remove('highlight'));
+                    // Add highlight to the touched row
+                    row.classList.add('highlight');
+                };
+
+                // Add touchstart listeners to puts table cells
+                putsTableBody.querySelectorAll('tr').forEach(row => {
+                    row.querySelectorAll('td').forEach(cell => {
+                        cell.addEventListener('touchstart', (e) => {
+                            e.preventDefault(); // Prevent default touch behaviors like scrolling
+                            highlightRow(row, putsTableBody);
+                        });
+                        // Optional: Remove highlight on touchend
+                        cell.addEventListener('touchend', () => {
+                            row.classList.remove('highlight');
+                        });
+                        cell.addEventListener('touchcancel', () => {
+                            row.classList.remove('highlight');
+                        });
+                    });
+                });
+
+                // Add touchstart listeners to calls table cells
+                callsTableBody.querySelectorAll('tr').forEach(row => {
+                    row.querySelectorAll('td').forEach(cell => {
+                        cell.addEventListener('touchstart', (e) => {
+                            e.preventDefault(); // Prevent default touch behaviors like scrolling
+                            highlightRow(row, callsTableBody);
+                        });
+                        // Optional: Remove highlight on touchend
+                        cell.addEventListener('touchend', () => {
+                            row.classList.remove('highlight');
+                        });
+                        cell.addEventListener('touchcancel', () => {
+                            row.classList.remove('highlight');
+                        });
+                    });
+                });
+            }
         }
 
         function toggleAutoRefresh() {
