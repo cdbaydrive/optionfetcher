@@ -1,43 +1,4 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -49,7 +10,7 @@
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f4f4f9;
+            background-color: #ffffff;
         }
         h1 {
             text-align: center;
@@ -64,17 +25,17 @@
             gap: 10px;
         }
         input[type="text"] {
-            padding: 10px;
-            font-size: 16px;
-            width: 200px;
+            padding: 8px;
+            font-size: 14px;
+            width: 60px;
             border: 1px solid #ccc;
             border-radius: 4px;
         }
         button {
-            padding: 10px 20px;
-            font-size: 16px;
+            padding: 8px 12px;
+            font-size: 14px;
             background-color: #007bff;
-            color: white;
+            color: #fff;
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -82,7 +43,6 @@
         button:hover {
             background-color: #0056b3;
         }
-        /* Toggle switch styles */
         .toggle-container {
             display: flex;
             align-items: center;
@@ -144,15 +104,16 @@
             padding: 10px 20px;
             margin: 0 5px;
             background-color: #ddd;
-            border-radius: 5px 5px 0 0;
+            border-radius: 5px;
             cursor: pointer;
             font-size: 14px;
+            color: #333;
             display: inline-block;
             flex-shrink: 0;
         }
         .tab.active {
             background-color: #007bff;
-            color: white;
+            color: #fff;
         }
         .tab span {
             display: block;
@@ -190,6 +151,9 @@
             top: 0;
             z-index: 12;
         }
+        th[colspan="4"], th.strike, th[colspan="5"] {
+            font-weight: bold;
+        }
         thead tr:nth-child(2) th {
             top: 35px;
             z-index: 11;
@@ -226,16 +190,37 @@
             outline: 2px solid #000000;
             outline-offset: -2px;
         }
+        table tbody tr.atm:hover {
+            background-color: #e6f0fa;
+            outline: 2px solid #000000;
+            outline-offset: 0;
+        }
         td {
             position: relative;
+        }
+        /* Mobile-specific styles */
+        .mobile-tables {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        .mobile-table-container {
+            width: 100%;
+        }
+        /* Ensure text wraps to avoid horizontal scrolling */
+        th, td {
+            white-space: normal;
+            word-wrap: break-word;
+            max-width: 80px; /* Limit column width for mobile */
         }
     </style>
 </head>
 <body>
     <h1>Option Chain Fetcher</h1>
     <div class="input-container">
-        <input type="text" id="symbolInput" placeholder="Enter stock symbol (e.g., TQQQ)" value="TQQQ" />
-        <button onclick="fetchOptionChain()">Fetch Option Chain</button>
+        <input type="text" id="symbolInput" placeholder="Symbol" value="TQQQ" maxlength="5" />
+        <button onclick="fetchOptionChain()">Fetch</button>
         <div class="toggle-container">
             <label class="toggle-label">Auto-Refresh</label>
             <label class="toggle-switch">
@@ -247,7 +232,7 @@
     <div id="loading" class="loading" style="display: none;">Loading...</div>
     <div id="error" class="error" style="display: none;"></div>
     <div id="tabs" class="tabs"></div>
-    <div class="table-container">
+    <div id="tableWrapper" class="table-container">
         <table id="optionTable" style="display: none;">
             <thead>
                 <tr>
@@ -268,18 +253,94 @@
             </thead>
             <tbody id="optionTableBody"></tbody>
         </table>
+        <div id="mobileTables" class="mobile-tables" style="display: none;">
+            <div class="mobile-table-container">
+                <table id="putsTable">
+                    <thead>
+                        <tr>
+                            <th colspan="5">PUTS</th>
+                        </tr>
+                        <tr>
+                            <th>STRIKE</th>
+                            <th>Bid</th>
+                            <th>Bid (%)</th>
+                            <th>Strike / Stock</th>
+                            <th>Delta</th>
+                        </tr>
+                    </thead>
+                    <tbody id="putsTableBody"></tbody>
+                </table>
+            </div>
+            <div class="mobile-table-container">
+                <table id="callsTable">
+                    <thead>
+                        <tr>
+                            <th colspan="5">CALLS</th>
+                        </tr>
+                        <tr>
+                            <th>Bid</th>
+                            <th>Bid (%)</th>
+                            <th>Strike / Stock</th>
+                            <th>Delta</th>
+                            <th>STRIKE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="callsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
-    <script>
+    <script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+            return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+            if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+                try {
+                    var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                    var firstSheetName = workbook.SheetNames[0];
+                    var worksheet = workbook.Sheets[firstSheetName];
+                    var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                    var filteredData = jsonData.filter(row => row.some(filledCell));
+                    var headerRowIndex = filteredData.findIndex((row, index) =>
+                        row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                    );
+                    if (headerRowIndex === -1 || headerRowIndex > 25) {
+                        headerRowIndex = 0;
+                    }
+                    var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+                    csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                    return csv;
+                } catch (e) {
+                    console.error(e);
+                    return "";
+                }
+            }
+            return gk_fileData[filename] || "";
+        }
+
         const API_KEY = 'cochuehr01qj8q79ucegcochuehr01qj8q79ucf0';
         const BASE_URL = 'https://finnhub.io/api/v1';
         let allOptions = [];
         let currentPrice = 0;
         let autoRefreshInterval = null;
 
+        // Device detection function
+        function isMobileDevice() {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            const mobileRegex = /android|webos|iphone|ipod|blackberry|iemobile|opera mini/i;
+            const isMobileUA = mobileRegex.test(userAgent);
+            const isSmallScreen = window.innerWidth <= 768;
+            return isMobileUA || isSmallScreen;
+        }
+
         // Helper function to calculate days until expiration
         function daysUntilExpiration(expirationDate) {
-            const today = new Date('2025-05-24');
+            const today = new Date('2025-05-26');
             const expDate = new Date(expirationDate);
             const diffTime = expDate - today;
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -300,12 +361,14 @@
             const errorDiv = document.getElementById('error');
             const loadingDiv = document.getElementById('loading');
             const optionTable = document.getElementById('optionTable');
+            const mobileTables = document.getElementById('mobileTables');
             const tabsDiv = document.getElementById('tabs');
 
             if (!symbol) {
                 errorDiv.textContent = 'Please enter a valid stock symbol.';
                 errorDiv.style.display = 'block';
                 optionTable.style.display = 'none';
+                mobileTables.style.display = 'none';
                 tabsDiv.innerHTML = '';
                 return;
             }
@@ -313,10 +376,10 @@
             errorDiv.style.display = 'none';
             loadingDiv.style.display = 'block';
             optionTable.style.display = 'none';
+            mobileTables.style.display = 'none';
             tabsDiv.innerHTML = '';
 
             try {
-                // Fetch current stock price to determine ATM strike
                 const quoteResponse = await fetch(`${BASE_URL}/quote?symbol=${symbol}&token=${API_KEY}`);
                 const quoteData = await quoteResponse.json();
                 if (quoteData.error || !quoteData.c) {
@@ -327,7 +390,6 @@
                 }
                 currentPrice = quoteData.c;
 
-                // Fetch option chain
                 const response = await fetch(`${BASE_URL}/stock/option-chain?symbol=${symbol}&token=${API_KEY}`);
                 const data = await response.json();
 
@@ -346,7 +408,6 @@
                     return;
                 }
 
-                // Create tabs for each expiration date
                 allOptions.forEach((expData, index) => {
                     const expiration = expData.expirationDate;
                     const days = daysUntilExpiration(expiration);
@@ -359,9 +420,7 @@
                     tabsDiv.appendChild(tab);
                 });
 
-                // Display the first expiration by default
                 displayOptions(0);
-                optionTable.style.display = 'table';
                 loadingDiv.style.display = 'none';
             } catch (error) {
                 errorDiv.textContent = 'Failed to fetch data. Please try again later: ' + error.message;
@@ -371,7 +430,11 @@
         }
 
         function displayOptions(expIndex) {
+            const optionTable = document.getElementById('optionTable');
             const optionTableBody = document.getElementById('optionTableBody');
+            const mobileTables = document.getElementById('mobileTables');
+            const putsTableBody = document.getElementById('putsTableBody');
+            const callsTableBody = document.getElementById('callsTableBody');
             const tabs = document.querySelectorAll('.tab');
             tabs.forEach((tab, index) => {
                 tab.classList.toggle('active', index === expIndex);
@@ -381,7 +444,6 @@
             const calls = expData.options.CALL || [];
             const puts = expData.options.PUT || [];
 
-            // Create a map of strikes to pair calls and puts
             const strikeMap = new Map();
             calls.forEach(call => {
                 if (!strikeMap.has(call.strike)) {
@@ -396,11 +458,11 @@
                 }
             });
 
-            // Sort strikes
             const strikes = Array.from(strikeMap.keys()).sort((a, b) => a - b);
             optionTableBody.innerHTML = '';
+            putsTableBody.innerHTML = '';
+            callsTableBody.innerHTML = '';
 
-            // Find the strike to highlight based on the range
             let highlightStrike = null;
             for (let i = 0; i < strikes.length - 1; i++) {
                 const lowerStrike = strikes[i];
@@ -410,7 +472,6 @@
                     break;
                 }
             }
-            // Edge case: if currentPrice is above the highest strike or below the lowest strike
             if (!highlightStrike) {
                 if (currentPrice < strikes[0]) {
                     highlightStrike = strikes[0];
@@ -418,6 +479,10 @@
                     highlightStrike = strikes[strikes.length - 1];
                 }
             }
+
+            const isMobile = isMobileDevice();
+            optionTable.style.display = isMobile ? 'none' : 'table';
+            mobileTables.style.display = isMobile ? 'flex' : 'none';
 
             strikes.forEach(strike => {
                 const data = strikeMap.get(strike);
@@ -430,40 +495,59 @@
                 const callDelta = call.greeks && call.greeks.delta ? (call.greeks.delta.toFixed(3) + ' €') : '-';
                 const putDelta = put.greeks && put.greeks.delta ? (put.greeks.delta.toFixed(3) + ' €') : '-';
 
-                // Determine if Call and Put are in the money
                 const isCallITM = strike < currentPrice;
                 const isPutITM = strike > currentPrice;
 
-                const row = document.createElement('tr');
-                if (strike === highlightStrike) {
-                    row.className = 'atm';
+                if (!isMobile) {
+                    const row = document.createElement('tr');
+                    if (strike === highlightStrike) {
+                        row.className = 'atm';
+                    }
+                    let rowHTML = '';
+                    rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${call.bid || '-'}</td>`;
+                    rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callBidPercent}%</td>`;
+                    rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callStrikeStock}%</td>`;
+                    rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callDelta}</td>`;
+                    rowHTML += `<td class="strike">${strike}</td>`;
+                    rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${put.bid || '-'}</td>`;
+                    rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putBidPercent}%</td>`;
+                    rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putStrikeStock}%</td>`;
+                    rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putDelta}</td>`;
+                    row.innerHTML = rowHTML;
+                    optionTableBody.appendChild(row);
+                } else {
+                    const putRow = document.createElement('tr');
+                    const callRow = document.createElement('tr');
+                    if (strike === highlightStrike) {
+                        putRow.className = 'atm';
+                        callRow.className = 'atm';
+                    }
+                    let putRowHTML = '';
+                    putRowHTML += `<td class="strike ${isPutITM ? 'itm' : ''}">${strike}</td>`;
+                    putRowHTML += `<td class="${isPutITM ? 'itm' : ''}">${put.bid || '-'}</td>`;
+                    putRowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putBidPercent}%</td>`;
+                    putRowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putStrikeStock}%</td>`;
+                    putRowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putDelta}</td>`;
+                    putRow.innerHTML = putRowHTML;
+                    putsTableBody.appendChild(putRow);
+
+                    let callRowHTML = '';
+                    callRowHTML += `<td class="${isCallITM ? 'itm' : ''}">${call.bid || '-'}</td>`;
+                    callRowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callBidPercent}%</td>`;
+                    callRowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callStrikeStock}%</td>`;
+                    callRowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callDelta}</td>`;
+                    callRowHTML += `<td class="strike ${isCallITM ? 'itm' : ''}">${strike}</td>`;
+                    callRow.innerHTML = callRowHTML;
+                    callsTableBody.appendChild(callRow);
                 }
-
-                // Build the row HTML step by step
-                let rowHTML = '';
-                rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${call.bid || '-'}</td>`;
-                rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callBidPercent}%</td>`;
-                rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callStrikeStock}%</td>`;
-                rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callDelta}</td>`;
-                rowHTML += `<td class="strike">${strike}</td>`;
-                rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${put.bid || '-'}</td>`;
-                rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putBidPercent}%</td>`;
-                rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putStrikeStock}%</td>`;
-                rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putDelta}</td>`;
-
-                row.innerHTML = rowHTML;
-                optionTableBody.appendChild(row);
             });
         }
 
-        // Auto-refresh toggle function
         function toggleAutoRefresh() {
             const autoRefreshToggle = document.getElementById('autoRefreshToggle');
             if (autoRefreshToggle.checked) {
-                // Start auto-refresh every 3 seconds
                 autoRefreshInterval = setInterval(fetchOptionChain, 3000);
             } else {
-                // Stop auto-refresh
                 if (autoRefreshInterval) {
                     clearInterval(autoRefreshInterval);
                     autoRefreshInterval = null;
@@ -471,7 +555,6 @@
             }
         }
 
-        // Fetch data on page load
         fetchOptionChain();
     </script>
 </body>
