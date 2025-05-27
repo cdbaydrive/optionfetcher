@@ -1,135 +1,618 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Option Chain Fetcher</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-      background-color: #ffffff;
-    }
-
-    h1 {
-      text-align: center;
-      color: #333;
-    }
-
-    .market-status-banner {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 13px;
-      padding: 6px 10px;
-      background-color: #f0f0f0;
-      border-radius: 4px;
-      margin-bottom: 12px;
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      white-space: nowrap;
-    }
-
-    .market-open {
-      background-color: #e6f0fa;
-    }
-
-    .market-closed {
-      background-color: #f9dede;
-    }
-
-    .input-container {
-      margin-bottom: 20px;
-      text-align: center;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-    }
-
-    input[type="text"] {
-      padding: 8px;
-      font-size: 14px;
-      width: 60px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-
-    button {
-      padding: 8px 12px;
-      font-size: 14px;
-      background-color: #007bff;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background-color: #0056b3;
-    }
-
-    /* ... (Keep all other styles unchanged from your original code) ... */
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Option Chain Fetcher</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .market-status-banner {
+            text-align: center;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #333;
+        }
+        .market-open {
+            background-color: #e6f0fa;
+        }
+        .market-closed {
+            background-color: #f9dede;
+        }
+        .input-container {
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        input[type="text"] {
+            padding: 8px;
+            font-size: 14px;
+            width: 60px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 12px;
+            font-size: 14px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .toggle-label {
+            font-size: 14px;
+            color: #333;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #007bff;
+        }
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+        .tabs {
+            display: flex;
+            overflow-x: auto;
+            margin-bottom: 10px;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            padding-bottom: 10px;
+        }
+        .tab {
+            padding: 10px 20px;
+            margin: 0 5px;
+            background-color: #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .tab.active {
+            background-color: #007bff;
+            color: #fff;
+        }
+        .tab span {
+            display: block;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
+        .tab.active span {
+            color: #fff;
+        }
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+            position: relative;
+            background-color: white;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        th, td {
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+            font-size: 14px;
+        }
+        th {
+            background-color: #f0f0f0 !important;
+            color: #333;
+            font-weight: normal;
+            position: sticky;
+            top: 0;
+            z-index: 12;
+        }
+        th[colspan="4"], th.strike, th[colspan="5"] {
+            font-weight: bold;
+        }
+        thead tr:nth-child(2) th {
+            top: 35px;
+            z-index: 11;
+        }
+        thead {
+            background-color: #f0f0f0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .strike {
+            background-color: #f0f0f0;
+        }
+        .itm {
+            background-color: #e6f0fa;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .loading {
+            text-align: center;
+            margin-top: 20px;
+            font-style: italic;
+        }
+        .atm td {
+            background-color: #000 !important;
+            color: white !important;
+        }
+        table tbody tr:hover {
+            background-color: #f0f8ff;
+            outline: 2px solid #000000;
+            outline-offset: -2px;
+        }
+        table tbody tr.atm:hover {
+            background-color: #e6f0fa;
+            outline: 2px solid #000000;
+            outline-offset: 0;
+        }
+        tdimiento {
+            position: relative;
+        }
+        .mobile-tables {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .mobile-table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+    </style>
 </head>
 <body>
-  <div id="marketStatusBanner" class="market-status-banner"></div>
-  <h1>Option Chain Fetcher</h1>
-  <!-- Your input, tables, and other components remain unchanged -->
+    <div id="marketStatusBanner" class="market-status-banner"></div>
+    <h1>Option Chain Fetcher</h1>
+    <div class="input-container">
+        <input type="text" id="symbolInput" placeholder="Symbol" value="TQQQ" maxlength="5" />
+        <button onclick="fetchOptionChain()">Fetch</button>
+        <div class="toggle-container">
+            <label class="toggle-label">Auto-Refresh</label>
+            <label class="toggle-switch">
+                <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh()">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+    <div id="loading" class="loading" style="display: none;">Loading...</div>
+    <div id="error" class="error" style="display: none;"></div>
+    <div id="tabs" class="tabs"></div>
+    <div id="tableWrapper" class="table-container">
+        <table id="optionTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th colspan="4">CALLS</th>
+                    <th rowspan="2" class="strike">STRIKE</th>
+                    <th colspan="4">PUTS</th>
+                </tr>
+                <tr>
+                    <th>Bid</th>
+                    <th>Bid (%)</th>
+                    <th>Strike / Stock</th>
+                    <th>Delta</th>
+                    <th>Bid</th>
+                    <th>Bid (%)</th>
+                    <th>Strike / Stock</th>
+                    <th>Delta</th>
+                </tr>
+            </thead>
+            <tbody id="optionTableBody"></tbody>
+        </table>
+        <div id="mobileTables" class="mobile-tables" style="display: none;">
+            <div class="mobile-table-container">
+                <table id="putsTable">
+                    <thead>
+                        <tr>
+                            <th colspan="5">PUTS</th>
+                        </tr>
+                        <tr>
+                            <th>STRIKE</th>
+                            <th>Bid</th>
+                            <th>Bid (%)</th>
+                            <th>Strike / Stock</th>
+                            <th>Delta</th>
+                        </tr>
+                    </thead>
+                    <tbody id="putsTableBody"></tbody>
+                </table>
+            </div>
+            <div class="mobile-table-container">
+                <table id="callsTable">
+                    <thead>
+                        <tr>
+                            <th colspan="5">CALLS</th>
+                        </tr>
+                        <tr>
+                            <th>Bid</th>
+                            <th>Bid (%)</th>
+                            <th>Strike / Stock</th>
+                            <th>Delta</th>
+                            <th>STRIKE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="callsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-  <script>
-    const API_KEY = 'cochuehr01qj8q79ucegcochuehr01qj8q79ucf0';
-    const BASE_URL = 'https://finnhub.io/api/v1';
-
-    async function fetchMarketStatus() {
-      const banner = document.getElementById('marketStatusBanner');
-      try {
-        const response = await fetch(${BASE_URL}/stock/market-status?exchange=US&token=${API_KEY});
-        const data = await response.json();
-        const isOpen = data.isOpen;
-        const currentTime = new Date();
-        const etTime = new Date(currentTime.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-        let message = '';
-
-        if (isOpen) {
-          message = 'US Market is Open';
-          banner.className = 'market-status-banner market-open';
-        } else {
-          let nextOpen = new Date(etTime);
-          nextOpen.setHours(9, 30, 0, 0);
-          if (etTime.getHours() > 9 || (etTime.getHours() === 9 && etTime.getMinutes() >= 30)) {
-            nextOpen.setDate(nextOpen.getDate() + 1);
-          }
-          while (nextOpen.getDay() === 0 || nextOpen.getDay() === 6) {
-            nextOpen.setDate(nextOpen.getDate() + 1);
-          }
-
-          const localTime = new Date(nextOpen.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-          const localOpen = new Date(localTime.toLocaleString());
-
-          const timeStr = localOpen.toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-          });
-          const dateStr = localOpen.toLocaleDateString([], {
-            month: 'short',
-            day: 'numeric'
-          });
-
-          message = US Market is Closed. Opens at ${timeStr} on ${dateStr} (your time);
-          banner.className = 'market-status-banner market-closed';
+    <script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+            return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+            if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+                try {
+                    var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                    var firstSheetName = workbook.SheetNames[0];
+                    var worksheet = workbook.Sheets[firstSheetName];
+                    var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                    var filteredData = jsonData.filter(row => row.some(filledCell));
+                    var headerRowIndex = filteredData.findIndex((row, index) =>
+                        row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                    );
+                    if (headerRowIndex === -1 || headerRowIndex > 25) {
+                        headerRowIndex = 0;
+                    }
+                    var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+                    csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                    return csv;
+                } catch (e) {
+                    console.error(e);
+                    return "";
+                }
+            }
+            return gk_fileData[filename] || "";
         }
 
-        banner.textContent = message;
-      } catch (error) {
-        banner.textContent = 'Failed to fetch market status: ' + error.message;
-        banner.className = 'market-status-banner';
-      }
-    }
+        const API_KEY = 'cochuehr01qj8q79ucegcochuehr01qj8q79ucf0';
+        const BASE_URL = 'https://finnhub.io/api/v1';
+        let allOptions = [];
+        let currentPrice = 0;
+        let autoRefreshInterval = null;
 
-    window.addEventListener('DOMContentLoaded', fetchMarketStatus);
-  </script>
+        // Function to fetch and display market status
+        async function fetchMarketStatus() {
+            const banner = document.getElementById('marketStatusBanner');
+            try {
+                const response = await fetch(`${BASE_URL}/stock/market-status?exchange=US&token=${API_KEY}`);
+                const data = await response.json();
+                if (data.error) {
+                    banner.textContent = 'Error fetching market status.';
+                    banner.className = 'market-status-banner';
+                    return;
+                }
+
+                const isOpen = data.isOpen;
+                const currentTime = new Date();
+                const etTime = new Date(currentTime.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+                let message = '';
+
+                if (isOpen) {
+                    message = 'US Market is Open';
+                    banner.className = 'market-status-banner market-open';
+                } else {
+                    // Calculate next opening time (9:30 AM ET, next trading day)
+                    let nextOpen = new Date(etTime);
+                    nextOpen.setHours(9, 30, 0, 0); // Set to 9:30 AM ET
+                    if (etTime.getHours() >= 9 && etTime.getMinutes() >= 30) {
+                        nextOpen.setDate(nextOpen.getDate() + 1); // Move to next day
+                    }
+                    // Skip weekends (Saturday = 6, Sunday = 0)
+                    while (nextOpen.getDay() === 0 || nextOpen.getDay() === 6) {
+                        nextOpen.setDate(nextOpen.getDate() + 1);
+                    }
+                    const options = { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' };
+                    const formattedTime = nextOpen.toLocaleTimeString('en-US', options);
+                    const formattedDate = nextOpen.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+                    message = `US Market is Closed. Opens at ${formattedTime} ET on ${formattedDate}`;
+                    banner.className = 'market-status-banner market-closed';
+                }
+                banner.textContent = message;
+            } catch (error) {
+                banner.textContent = 'Failed to fetch market status: ' + error.message;
+                banner.className = 'market-status-banner';
+            }
+        }
+
+        // Device detection function
+        function isMobileDevice() {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            const mobileRegex = /android|webos|iphone|ipod|blackberry|iemobile|opera mini/i;
+            const isMobileUA = mobileRegex.test(userAgent);
+            const isSmallScreen = window.innerWidth <= 768;
+            return isMobileUA || isSmallScreen;
+        }
+
+        // Helper function to calculate days until expiration
+        function daysUntilExpiration(expirationDate) {
+            const today = new Date('2025-05-24');
+            const expDate = new Date(expirationDate);
+            const diffTime = expDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays;
+        }
+
+        // Helper function to format date as "MMMDD'YY"
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const options = { month: 'short', day: '2-digit' };
+            const formatted = date.toLocaleDateString('en-US', options).replace(' ', '');
+            const year = date.getFullYear().toString().slice(-2);
+            return `${formatted}'${year}`;
+        }
+
+        async function fetchOptionChain() {
+            const symbol = document.getElementById('symbolInput').value.trim().toUpperCase();
+            const errorDiv = document.getElementById('error');
+            const loadingDiv = document.getElementById('loading');
+            const optionTable = document.getElementById('optionTable');
+            const mobileTables = document.getElementById('mobileTables');
+            const tabsDiv = document.getElementById('tabs');
+
+            if (!symbol) {
+                errorDiv.textContent = 'Please enter a valid stock symbol.';
+                errorDiv.style.display = 'block';
+                optionTable.style.display = 'none';
+                mobileTables.style.display = 'none';
+                tabsDiv.innerHTML = '';
+                return;
+            }
+
+            errorDiv.style.display = 'none';
+            loadingDiv.style.display = 'block';
+            optionTable.style.display = 'none';
+            mobileTables.style.display = 'none';
+            tabsDiv.innerHTML = '';
+
+            try {
+                // Fetch market status
+                await fetchMarketStatus();
+
+                const quoteResponse = await fetch(`${BASE_URL}/quote?symbol=${symbol}&token=${API_KEY}`);
+                const quoteData = await quoteResponse.json();
+                if (quoteData.error || !quoteData.c) {
+                    errorDiv.textContent = 'Error fetching stock price.';
+                    errorDiv.style.display = 'block';
+                    loadingDiv.style.display = 'none';
+                    return;
+                }
+                currentPrice = quoteData.c;
+
+                const response = await fetch(`${BASE_URL}/stock/option-chain?symbol=${symbol}&token=${API_KEY}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    errorDiv.textContent = data.error || 'Error fetching option chain data.';
+                    errorDiv.style.display = 'block';
+                    loadingDiv.style.display = 'none';
+                    return;
+                }
+
+                allOptions = data.data || [];
+                if (!allOptions.length) {
+                    errorDiv.textContent = 'No option chain data available for this symbol.';
+                    errorDiv.style.display = 'block';
+                    loadingDiv.style.display = 'none';
+                    return;
+                }
+
+                allOptions.forEach((expData, index) => {
+                    const expiration = expData.expirationDate;
+                    const days = daysUntilExpiration(expiration);
+                    const formattedDate = formatDate(expiration);
+                    const tab = document.createElement('div');
+                    tab.className = 'tab';
+                    if (index === 0) tab.classList.add('active');
+                    tab.innerHTML = `${formattedDate}<span>${days} Days</span>`;
+                    tab.onclick = () => displayOptions(index);
+                    tabsDiv.appendChild(tab);
+                });
+
+                displayOptions(0);
+                loadingDiv.style.display = 'none';
+            } catch (error) {
+                errorDiv.textContent = 'Failed to fetch data. Please try again later: ' + error.message;
+                errorDiv.style.display = 'block';
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        function displayOptions(expIndex) {
+            const optionTable = document.getElementById('optionTable');
+            const optionTableBody = document.getElementById('optionTableBody');
+            const mobileTables = document.getElementById('mobileTables');
+            const putsTableBody = document.getElementById('putsTableBody');
+            const callsTableBody = document.getElementById('callsTableBody');
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach((tab, index) => {
+                tab.classList.toggle('active', index === expIndex);
+            });
+
+            const expData = allOptions[expIndex];
+            const calls = expData.options.CALL || [];
+            const puts = expData.options.PUT || [];
+
+            const strikeMap = new Map();
+            calls.forEach(call => {
+                if (!strikeMap.has(call.strike)) {
+                    strikeMap.set(call.strike, { call: call, put: null });
+                }
+            });
+            puts.forEach(put => {
+                if (strikeMap.has(put.strike)) {
+                    strikeMap.get(put.strike).put = put;
+                } else {
+                    strikeMap.set(put.strike, { call: null, put: put });
+                }
+            });
+
+            const strikes = Array.from(strikeMap.keys()).sort((a, b) => a - b);
+            optionTableBody.innerHTML = '';
+            putsTableBody.innerHTML = '';
+            callsTableBody.innerHTML = '';
+
+            let highlightStrike = null;
+            for (let i = 0; i < strikes.length - 1; i++) {
+                const lowerStrike = strikes[i];
+                const upperStrike = strikes[i + 1];
+                if (currentPrice >= lowerStrike && currentPrice < upperStrike) {
+                    highlightStrike = lowerStrike;
+                    break;
+                }
+            }
+            if (!highlightStrike) {
+                if (currentPrice < strikes[0]) {
+                    highlightStrike = strikes[0];
+                } else if (currentPrice >= strikes[strikes.length - 1]) {
+                    highlightStrike = strikes[strikes.length - 1];
+                }
+            }
+
+            const isMobile = isMobileDevice();
+            optionTable.style.display = isMobile ? 'none' : 'table';
+            mobileTables.style.display = isMobile ? 'flex' : 'none';
+
+            strikes.forEach(strike => {
+                const data = strikeMap.get(strike);
+                const call = data.call || {};
+                const put = data.put || {};
+                const callBidPercent = call.bid && strike ? (call.bid / strike * 100).toFixed(2) : '-';
+                const putBidPercent = put.bid && strike ? (put.bid / strike * 100).toFixed(2) : '-';
+                const callStrikeStock = strike && currentPrice ? (((strike / currentPrice) - 1) * 100).toFixed(2) : '-';
+                const putStrikeStock = strike && currentPrice ? (((strike / currentPrice) - 1) * 100).toFixed(2) : '-';
+                const callDelta = call.greeks && call.greeks.delta ? (call.greeks.delta.toFixed(3) + ' €') : '-';
+                const putDelta = put.greeks && put.greeks.delta ? (put.greeks.delta.toFixed(3) + ' €') : '-';
+
+                const isCallITM = strike < currentPrice;
+                const isPutITM = strike > currentPrice;
+
+                if (!isMobile) {
+                    const row = document.createElement('tr');
+                    if (strike === highlightStrike) {
+                        row.className = 'atm';
+                    }
+                    let rowHTML = '';
+                    rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${call.bid || '-'}</td>`;
+                    rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callBidPercent}%</td>`;
+                    rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callStrikeStock}%</td>`;
+                    rowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callDelta}</td>`;
+                    rowHTML += `<td class="strike">${strike}</td>`;
+                    rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${put.bid || '-'}</td>`;
+                    rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putBidPercent}%</td>`;
+                    rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putStrikeStock}%</td>`;
+                    rowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putDelta}</td>`;
+                    row.innerHTML = rowHTML;
+                    optionTableBody.appendChild(row);
+                } else {
+                    const putRow = document.createElement('tr');
+                    const callRow = document.createElement('tr');
+                    if (strike === highlightStrike) {
+                        putRow.className = 'atm';
+                        callRow.className = 'atm';
+                    }
+                    let putRowHTML = '';
+                    putRowHTML += `<td class="strike ${isPutITM ? 'itm' : ''}">${strike}</td>`;
+                    putRowHTML += `<td class="${isPutITM ? 'itm' : ''}">${put.bid || '-'}</td>`;
+                    putRowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putBidPercent}%</td>`;
+                    putRowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putStrikeStock}%</td>`;
+                    putRowHTML += `<td class="${isPutITM ? 'itm' : ''}">${putDelta}</td>`;
+                    putRow.innerHTML = putRowHTML;
+                    putsTableBody.appendChild(putRow);
+
+                    let callRowHTML = '';
+                    callRowHTML += `<td class="${isCallITM ? 'itm' : ''}">${call.bid || '-'}</td>`;
+                    callRowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callBidPercent}%</td>`;
+                    callRowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callStrikeStock}%</td>`;
+                    callRowHTML += `<td class="${isCallITM ? 'itm' : ''}">${callDelta}</td>`;
+                    callRowHTML += `<td class="strike ${isCallITM ? 'itm' : ''}">${strike}</td>`;
+                    callRow.innerHTML = callRowHTML;
+                    callsTableBody.appendChild(callRow);
+                }
+            });
+        }
+
+        function toggleAutoRefresh() {
+            const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+            if (autoRefreshToggle.checked) {
+                autoRefreshInterval = setInterval(fetchOptionChain, 3000);
+            } else {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+        }
+
+        // Initial fetch for market status and option chain
+        fetchOptionChain();
+    </script>
 </body>
 </html>
