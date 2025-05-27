@@ -18,12 +18,15 @@
         }
         .market-status-banner {
             text-align: center;
-            padding: 10px;
+            padding: 8px;
             background-color: #f0f0f0;
             border-radius: 4px;
             margin-bottom: 20px;
-            font-size: 14px;
+            font-size: 12px;
             color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .market-open {
             background-color: #e6f0fa;
@@ -338,7 +341,6 @@
         let currentPrice = 0;
         let autoRefreshInterval = null;
 
-        // Function to fetch and display market status
         async function fetchMarketStatus() {
             const banner = document.getElementById('marketStatusBanner');
             try {
@@ -359,20 +361,23 @@
                     message = 'US Market is Open';
                     banner.className = 'market-status-banner market-open';
                 } else {
-                    // Calculate next opening time (9:30 AM ET, next trading day)
                     let nextOpen = new Date(etTime);
-                    nextOpen.setHours(9, 30, 0, 0); // Set to 9:30 AM ET
+                    nextOpen.setHours(9, 30, 0, 0);
                     if (etTime.getHours() >= 9 && etTime.getMinutes() >= 30) {
-                        nextOpen.setDate(nextOpen.getDate() + 1); // Move to next day
+                        nextOpen.setDate(nextOpen.getDate() + 1);
                     }
-                    // Skip weekends (Saturday = 6, Sunday = 0)
                     while (nextOpen.getDay() === 0 || nextOpen.getDay() === 6) {
                         nextOpen.setDate(nextOpen.getDate() + 1);
                     }
-                    const options = { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' };
+                    const options = { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        timeZoneName: 'short'
+                    };
                     const formattedTime = nextOpen.toLocaleTimeString('en-US', options);
                     const formattedDate = nextOpen.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-                    message = `US Market is Closed. Opens at ${formattedTime} ET on ${formattedDate}`;
+                    message = `US Market is Closed. Opens at ${formattedTime} on ${formattedDate}`;
                     banner.className = 'market-status-banner market-closed';
                 }
                 banner.textContent = message;
@@ -382,7 +387,6 @@
             }
         }
 
-        // Device detection function
         function isMobileDevice() {
             const userAgent = navigator.userAgent || navigator.vendor || window.opera;
             const mobileRegex = /android|webos|iphone|ipod|blackberry|iemobile|opera mini/i;
@@ -391,16 +395,14 @@
             return isMobileUA || isSmallScreen;
         }
 
-        // Helper function to calculate days until expiration
         function daysUntilExpiration(expirationDate) {
-            const today = new Date('2025-05-24');
+            const today = new Date('2025-05-27');
             const expDate = new Date(expirationDate);
             const diffTime = expDate - today;
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             return diffDays;
         }
 
-        // Helper function to format date as "MMMDD'YY"
         function formatDate(dateStr) {
             const date = new Date(dateStr);
             const options = { month: 'short', day: '2-digit' };
@@ -433,7 +435,6 @@
             tabsDiv.innerHTML = '';
 
             try {
-                // Fetch market status
                 await fetchMarketStatus();
 
                 const quoteResponse = await fetch(`${BASE_URL}/quote?symbol=${symbol}&token=${API_KEY}`);
@@ -611,7 +612,6 @@
             }
         }
 
-        // Initial fetch for market status and option chain
         fetchOptionChain();
     </script>
 </body>
