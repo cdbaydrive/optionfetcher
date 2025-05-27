@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Option Chain Fetcher</title>
+    <title>Market Dashboard</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -12,17 +12,71 @@
             padding: 20px;
             background-color: #ffffff;
         }
+        /* Back Button */
+        .back-button {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            padding: 8px 12px;
+            font-size: 14px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 100;
+            display: none;
+        }
+        .back-button:hover {
+            background-color: #0056b3;
+        }
+        .back-button.visible {
+            display: block;
+        }
+
+        /* View Management */
+        .page-view {
+            display: none;
+        }
+        .page-view.active {
+            display: block;
+        }
+
+        /* Header Styles */
         h1 {
             text-align: center;
             color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
+        .menu-icon {
+            width: 28px;
+            height: 28px;
+            background-color: #007bff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .menu-icon .dot {
+            width: 4px;
+            height: 4px;
+            background-color: #fff;
+            border-radius: 50%;
+            margin: 0 2px;
+        }
+
+        /* Market Status */
         .market-status-banner {
             text-align: center;
-            padding: 8px;
+            padding: 10px;
             background-color: #f0f0f0;
             border-radius: 4px;
             margin-bottom: 20px;
-            font-size: 12px;
+            font-size: 14px;
             color: #333;
             white-space: nowrap;
             overflow: hidden;
@@ -34,6 +88,8 @@
         .market-closed {
             background-color: #f9dede;
         }
+
+        /* Input Containers */
         .input-container {
             margin-bottom: 20px;
             text-align: center;
@@ -45,12 +101,12 @@
         input[type="text"] {
             padding: 8px;
             font-size: 14px;
-            width: 60px;
+            width: 120px;
             border: 1px solid #ccc;
             border-radius: 4px;
         }
         button {
-            padding: 8px 12px;
+            padding: 8px 16px;
             font-size: 14px;
             background-color: #007bff;
             color: #fff;
@@ -61,10 +117,12 @@
         button:hover {
             background-color: #0056b3;
         }
+
+        /* Toggle Switch */
         .toggle-container {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
         }
         .toggle-label {
             font-size: 14px;
@@ -109,6 +167,8 @@
         input:checked + .slider:before {
             transform: translateX(20px);
         }
+
+        /* Tabs */
         .tabs {
             display: flex;
             overflow-x: auto;
@@ -133,6 +193,9 @@
             background-color: #007bff;
             color: #fff;
         }
+        .tab:hover {
+            background-color: #bbb;
+        }
         .tab span {
             display: block;
             text-align: center;
@@ -142,6 +205,8 @@
         .tab.active span {
             color: #fff;
         }
+
+        /* Table Container */
         .table-container {
             max-height: 600px;
             overflow-y: auto;
@@ -189,16 +254,6 @@
         .itm {
             background-color: #e6f0fa;
         }
-        .error {
-            color: red;
-            text-align: center;
-            margin-top: 20px;
-        }
-        .loading {
-            text-align: center;
-            margin-top: 20px;
-            font-style: italic;
-        }
         .atm td {
             background-color: #000 !important;
             color: white !important;
@@ -213,9 +268,8 @@
             outline: 2px solid #000000;
             outline-offset: 0;
         }
-        tdimiento {
-            position: relative;
-        }
+
+        /* Mobile Tables */
         .mobile-tables {
             display: flex;
             flex-direction: column;
@@ -225,122 +279,205 @@
             width: 100%;
             overflow-x: auto;
         }
+
+        /* Dashboard Sections */
+        .dashboard-section {
+            margin-bottom: 30px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .dashboard-section h2 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        .news-item {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .news-item h3 {
+            font-size: 16px;
+            margin: 0 0 5px;
+        }
+        .news-item p {
+            font-size: 14px;
+            color: #666;
+            margin: 0;
+        }
+        .news-item a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .news-item a:hover {
+            text-decoration: underline;
+        }
+
+        /* Error and Loading */
+        .error {
+            color: red;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .loading {
+            text-align: center;
+            margin-top: 20px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
-    <div id="marketStatusBanner" class="market-status-banner"></div>
-    <h1>Option Chain Fetcher</h1>
-    <div class="input-container">
-        <input type="text" id="symbolInput" placeholder="Symbol" value="TQQQ" maxlength="5" />
-        <button onclick="fetchOptionChain()">Fetch</button>
-        <div class="toggle-container">
-            <label class="toggle-label">Auto-Refresh</label>
-            <label class="toggle-switch">
-                <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh()">
-                <span class="slider"></span>
-            </label>
+    <!-- Back Button -->
+    <button id="backButton" class="back-button" onclick="goBack()">← Back</button>
+
+    <!-- Main View (Option Chain) -->
+    <div id="mainView" class="page-view active">
+        <div id="marketStatusBanner" class="market-status-banner"></div>
+        <h1>
+            <span class="menu-icon" onclick="showView('menuView')">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </span>
+            Dashboard
+        </h1>
+        <div class="input-container">
+            <input type="text" id="symbolInput" placeholder="Symbol" value="TQQQ" maxlength="5">
+            <button onclick="fetchOptionChain()">Fetch</button>
+            <div class="toggle-container">
+                <label class="toggle-label">Auto-Refresh</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+        <div id="mainLoading" class="loading" style="display: none;">Loading...</div>
+        <div id="mainError" class="error" style="display: none;"></div>
+        <div id="tabs" class="tabs"></div>
+        <div id="tableWrapper" class="table-container">
+            <table id="optionTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th colspan="4">CALLS</th>
+                        <th rowspan="2" class="strike">STRIKE</th>
+                        <th colspan="4">PUTS</th>
+                    </tr>
+                    <tr>
+                        <th>Bid</th>
+                        <th>Bid (%)</th>
+                        <th>Strike / Stock</th>
+                        <th>Delta</th>
+                        <th>Bid</th>
+                        <th>Bid (%)</th>
+                        <th>Strike / Stock</th>
+                        <th>Delta</th>
+                    </tr>
+                </thead>
+                <tbody id="optionTableBody"></tbody>
+            </table>
+            <div id="mobileTables" class="mobile-tables" style="display: none;">
+                <div class="mobile-table-container">
+                    <table id="putsTable">
+                        <thead>
+                            <tr>
+                                <th colspan="5">PUTS</th>
+                            </tr>
+                            <tr>
+                                <th>STRIKE</th>
+                                <th>Bid</th>
+                                <th>Bid (%)</th>
+                                <th>Strike / Stock</th>
+                                <th>Delta</th>
+                            </tr>
+                        </thead>
+                        <tbody id="putsTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="mobile-table-container">
+                    <table id="callsTable">
+                        <thead>
+                            <tr>
+                                <th colspan="5">CALLS</th>
+                            </tr>
+                            <tr>
+                                <th>Bid</th>
+                                <th>Bid (%)</th>
+                                <th>Strike / Stock</th>
+                                <th>Delta</th>
+                                <th>STRIKE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="callsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
-    <div id="loading" class="loading" style="display: none;">Loading...</div>
-    <div id="error" class="error" style="display: none;"></div>
-    <div id="tabs" class="tabs"></div>
-    <div id="tableWrapper" class="table-container">
-        <table id="optionTable" style="display: none;">
-            <thead>
-                <tr>
-                    <th colspan="4">CALLS</th>
-                    <th rowspan="2" class="strike">STRIKE</th>
-                    <th colspan="4">PUTS</th>
-                </tr>
-                <tr>
-                    <th>Bid</th>
-                    <th>Bid (%)</th>
-                    <th>Strike / Stock</th>
-                    <th>Delta</th>
-                    <th>Bid</th>
-                    <th>Bid (%)</th>
-                    <th>Strike / Stock</th>
-                    <th>Delta</th>
-                </tr>
-            </thead>
-            <tbody id="optionTableBody"></tbody>
-        </table>
-        <div id="mobileTables" class="mobile-tables" style="display: none;">
-            <div class="mobile-table-container">
-                <table id="putsTable">
-                    <thead>
-                        <tr>
-                            <th colspan="5">PUTS</th>
-                        </tr>
-                        <tr>
-                            <th>STRIKE</th>
-                            <th>Bid</th>
-                            <th>Bid (%)</th>
-                            <th>Strike / Stock</th>
-                            <th>Delta</th>
-                        </tr>
-                    </thead>
-                    <tbody id="putsTableBody"></tbody>
-                </table>
-            </div>
-            <div class="mobile-table-container">
-                <table id="callsTable">
-                    <thead>
-                        <tr>
-                            <th colspan="5">CALLS</th>
-                        </tr>
-                        <tr>
-                            <th>Bid</th>
-                            <th>Bid (%)</th>
-                            <th>Strike / Stock</th>
-                            <th>Delta</th>
-                            <th>STRIKE</th>
-                        </tr>
-                    </thead>
-                    <tbody id="callsTableBody"></tbody>
-                </table>
-            </div>
+
+    <!-- Menu View -->
+    <div id="menuView" class="page-view">
+        <h1>Dashboard</h1>
+        <div class="input-container">
+            <input type="text" id="dashboardSymbolInput" placeholder="Enter Stock Symbol" value="TSLA" maxlength="5">
+            <button onclick="fetchDashboardData()">Fetch</button>
+        </div>
+        <div id="dashboardLoading" class="loading" style="display: none;">Loading...</div>
+        <div id="dashboardError" class="error" style="display: none;"></div>
+        <div class="dashboard-section">
+            <h2>Earnings Calendar</h2>
+            <div id="earningsCalendar"></div>
+        </div>
+        <div class="dashboard-section">
+            <h2>Basic Financials</h2>
+            <div id="basicFinancials"></div>
+        </div>
+        <div class="dashboard-section">
+            <h2>Recommendation Trends</h2>
+            <div id="recommendationTrends"></div>
+        </div>
+        <div class="dashboard-section">
+            <h2>Company News</h2>
+            <div id="companyNews"></div>
         </div>
     </div>
 
     <script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-            return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-            if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-                try {
-                    var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                    var firstSheetName = workbook.SheetNames[0];
-                    var worksheet = workbook.Sheets[firstSheetName];
-                    var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                    var filteredData = jsonData.filter(row => row.some(filledCell));
-                    var headerRowIndex = filteredData.findIndex((row, index) =>
-                        row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                    );
-                    if (headerRowIndex === -1 || headerRowIndex > 25) {
-                        headerRowIndex = 0;
-                    }
-                    var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
-                    csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                    return csv;
-                } catch (e) {
-                    console.error(e);
-                    return "";
-                }
-            }
-            return gk_fileData[filename] || "";
-        }
-
         const API_KEY = 'cochuehr01qj8q79ucegcochuehr01qj8q79ucf0';
         const BASE_URL = 'https://finnhub.io/api/v1';
         let allOptions = [];
         let currentPrice = 0;
         let autoRefreshInterval = null;
+        let navigationStack = ['mainView'];
+        let currentExpIndex = 0;
 
+        // View Management
+        function showView(viewId) {
+            document.querySelectorAll('.page-view').forEach(view => view.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            // Update navigation stack
+            if (navigationStack[navigationStack.length - 1] !== viewId) {
+                navigationStack.push(viewId);
+            }
+            // Toggle back button visibility
+            const backButton = document.getElementById('backButton');
+            backButton.classList.toggle('visible', viewId !== 'mainView');
+            // Trigger data fetch for menuView
+            if (viewId === 'menuView') {
+                fetchDashboardData();
+            }
+        }
+
+        function goBack() {
+            if (navigationStack.length > 1) {
+                navigationStack.pop(); // Remove current view
+                const previousView = navigationStack[navigationStack.length - 1];
+                showView(previousView);
+            }
+        }
+
+        // Market Status
         async function fetchMarketStatus() {
             const banner = document.getElementById('marketStatusBanner');
             try {
@@ -361,23 +498,29 @@
                     message = 'US Market is Open';
                     banner.className = 'market-status-banner market-open';
                 } else {
-                    let nextOpen = new Date(etTime);
-                    nextOpen.setHours(9, 30, 0, 0);
+                    // Assume EDT (UTC-4) for May 2025
+                    let nextOpen = new Date(Date.UTC(
+                        etTime.getUTCFullYear(),
+                        etTime.getUTCMonth(),
+                        etTime.getUTCDate(),
+                        13, 30 // 9:30 AM EDT (UTC-4) = 13:30 UTC
+                    ));
                     if (etTime.getHours() >= 9 && etTime.getMinutes() >= 30) {
-                        nextOpen.setDate(nextOpen.getDate() + 1);
+                        nextOpen.setUTCDate(nextOpen.getUTCDate() + 1);
                     }
-                    while (nextOpen.getDay() === 0 || nextOpen.getDay() === 6) {
-                        nextOpen.setDate(nextOpen.getDate() + 1);
+                    while (nextOpen.getUTCDay() === 0 || nextOpen.getUTCDay() === 6) {
+                        nextOpen.setUTCDate(nextOpen.getUTCDate() + 1);
                     }
+                    const userTimeZone = 'Asia/Hong_Kong';
                     const options = { 
                         hour: '2-digit', 
                         minute: '2-digit', 
-                        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                        timeZoneName: 'short'
+                        hour12: true,
+                        timeZone: userTimeZone
                     };
                     const formattedTime = nextOpen.toLocaleTimeString('en-US', options);
                     const formattedDate = nextOpen.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-                    message = `US Market is Closed. Opens at ${formattedTime} on ${formattedDate}`;
+                    message = `US Market is Closed. Opens at ${formattedTime} HKT on ${formattedDate}`;
                     banner.className = 'market-status-banner market-closed';
                 }
                 banner.textContent = message;
@@ -387,6 +530,7 @@
             }
         }
 
+        // Option Chain Functions
         function isMobileDevice() {
             const userAgent = navigator.userAgent || navigator.vendor || window.opera;
             const mobileRegex = /android|webos|iphone|ipod|blackberry|iemobile|opera mini/i;
@@ -413,8 +557,8 @@
 
         async function fetchOptionChain() {
             const symbol = document.getElementById('symbolInput').value.trim().toUpperCase();
-            const errorDiv = document.getElementById('error');
-            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('mainError');
+            const loadingDiv = document.getElementById('mainLoading');
             const optionTable = document.getElementById('optionTable');
             const mobileTables = document.getElementById('mobileTables');
             const tabsDiv = document.getElementById('tabs');
@@ -473,16 +617,63 @@
                     tab.className = 'tab';
                     if (index === 0) tab.classList.add('active');
                     tab.innerHTML = `${formattedDate}<span>${days} Days</span>`;
-                    tab.onclick = () => displayOptions(index);
+                    tab.onclick = () => {
+                        currentExpIndex = index;
+                        displayOptions(index);
+                    };
                     tabsDiv.appendChild(tab);
                 });
 
+                currentExpIndex = 0;
                 displayOptions(0);
                 loadingDiv.style.display = 'none';
             } catch (error) {
-                errorDiv.textContent = 'Failed to fetch data. Please try again later: ' + error.message;
+                errorDiv.textContent = 'Failed to fetch data: ' + error.message;
                 errorDiv.style.display = 'block';
                 loadingDiv.style.display = 'none';
+            }
+        }
+
+        async function refreshOptionTableData() {
+            const symbol = document.getElementById('symbolInput').value.trim().toUpperCase();
+            const errorDiv = document.getElementById('mainError');
+
+            if (!symbol) {
+                errorDiv.textContent = 'Please enter a valid stock symbol.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                const quoteResponse = await fetch(`${BASE_URL}/quote?symbol=${symbol}&token=${API_KEY}`);
+                const quoteData = await quoteResponse.json();
+                if (quoteData.error || !quoteData.c) {
+                    errorDiv.textContent = 'Error fetching stock price.';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+                currentPrice = quoteData.c;
+
+                const response = await fetch(`${BASE_URL}/stock/option-chain?symbol=${symbol}&token=${API_KEY}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    errorDiv.textContent = data.error || 'Error fetching option chain data.';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+
+                allOptions = data.data || [];
+                if (!allOptions.length) {
+                    errorDiv.textContent = 'No option chain data available for this symbol.';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+
+                displayOptions(currentExpIndex);
+            } catch (error) {
+                errorDiv.textContent = 'Failed to fetch data: ' + error.message;
+                errorDiv.style.display = 'block';
             }
         }
 
@@ -603,7 +794,7 @@
         function toggleAutoRefresh() {
             const autoRefreshToggle = document.getElementById('autoRefreshToggle');
             if (autoRefreshToggle.checked) {
-                autoRefreshInterval = setInterval(fetchOptionChain, 3000);
+                autoRefreshInterval = setInterval(refreshOptionTableData, 6000); // 6 seconds
             } else {
                 if (autoRefreshInterval) {
                     clearInterval(autoRefreshInterval);
@@ -612,6 +803,121 @@
             }
         }
 
+        // Format number as financial statement (e.g., $29,026,753,060)
+        function formatFinancialNumber(num) {
+            if (num == null || isNaN(num)) return '-';
+            return '$' + num.toFixed(0).replace(/\d(?=(\d{3})+$)/g, '$&,');
+        }
+
+        // Dashboard Data Fetch
+        async function fetchDashboardData() {
+            const symbol = document.getElementById('dashboardSymbolInput').value.trim().toUpperCase();
+            const loadingDiv = document.getElementById('dashboardLoading');
+            const errorDiv = document.getElementById('dashboardError');
+            const earningsDiv = document.getElementById('earningsCalendar');
+            const financialsDiv = document.getElementById('basicFinancials');
+            const recommendationDiv = document.getElementById('recommendationTrends');
+            const newsDiv = document.getElementById('companyNews');
+
+            if (!symbol) {
+                errorDiv.textContent = 'Please enter a valid stock symbol.';
+                errorDiv.style.display = 'block';
+                loadingDiv.style.display = 'none';
+                return;
+            }
+
+            loadingDiv.style.display = 'block';
+            errorDiv.style.display = 'none';
+            earningsDiv.innerHTML = '';
+            financialsDiv.innerHTML = '';
+            recommendationDiv.innerHTML = '';
+            newsDiv.innerHTML = '';
+
+            try {
+                // Fetch Earnings Calendar
+                const earningsResponse = await fetch(
+                    `${BASE_URL}/calendar/earnings?symbol=${symbol}&from=2025-05-27&to=2025-12-31&token=${API_KEY}`
+                );
+                const earningsData = await earningsResponse.json();
+                if (earningsData.error) {
+                    throw new Error(earningsData.error);
+                }
+                let earningsHTML = '<table>';
+                earningsHTML += '<tr><th>Date</th><th>Symbol</th><th>EPS Estimate</th><th>Revenue Estimate</th></tr>';
+                // Sort by date (ascending)
+                const sortedEarnings = (earningsData.earningsCalendar || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+                sortedEarnings.forEach(item => {
+                    earningsHTML += `<tr><td>${item.date || '-'}</td><td>${item.symbol || '-'}</td><td>${item.epsEstimate || '-'}</td><td>${formatFinancialNumber(item.revenueEstimate)}</td></tr>`;
+                });
+                earningsHTML += '</table>';
+                earningsDiv.innerHTML = earningsHTML;
+
+                // Fetch Basic Financials
+                const financialsResponse = await fetch(
+                    `${BASE_URL}/stock/metric?symbol=${symbol}&metric=all&token=${API_KEY}`
+                );
+                const financialsData = await financialsResponse.json();
+                if (financialsData.error) {
+                    throw new Error(financialsData.error);
+                }
+                const metrics = financialsData.metric || {};
+                let financialsHTML = '<table>';
+                financialsHTML += '<tr><th>Metric</th><th>Value</th></tr>';
+                financialsHTML += `<tr><td>52 Week High</td><td>${metrics['52WeekHigh'] ? metrics['52WeekHigh'].toFixed(2) : '-'}</td></tr>`;
+                financialsHTML += `<tr><td>52 Week Low</td><td>${metrics['52WeekLow'] ? metrics['52WeekLow'].toFixed(2) : '-'}</td></tr>`;
+                financialsHTML += `<tr><td>P/E Ratio</td><td>${metrics.peNormalizedAnnual ? metrics.peNormalizedAnnual.toFixed(2) : '-'}</td></tr>`;
+                financialsHTML += '</table>';
+                financialsDiv.innerHTML = financialsHTML;
+
+                // Fetch Recommendation Trends
+                const recommendationResponse = await fetch(
+                    `${BASE_URL}/stock/recommendation?symbol=${symbol}&token=${API_KEY}`
+                );
+                const recommendationData = await recommendationResponse.json();
+                if (recommendationData.error) {
+                    throw new Error(recommendationData.error);
+                }
+                const latestRecommendation = recommendationData[0] || {};
+                let recommendationHTML = '<table>';
+                recommendationHTML += '<tr><th>Strong Buy</th><th>Buy</th><th>Hold</th><th>Sell</th><th>Strong Sell</th></tr>';
+                recommendationHTML += `<tr>
+                    <td>${latestRecommendation.strongBuy || 0}</td>
+                    <td>${latestRecommendation.buy || 0}</td>
+                    <td>${latestRecommendation.hold || 0}</td>
+                    <td>${latestRecommendation.sell || 0}</td>
+                    <td>${latestRecommendation.strongSell || 0}</td>
+                </tr>`;
+                recommendationHTML += '</table>';
+                recommendationDiv.innerHTML = recommendationHTML;
+
+                // Fetch Company News
+                const newsResponse = await fetch(
+                    `${BASE_URL}/company-news?symbol=${symbol}&from=2023-01-01&to=2025-05-27&token=${API_KEY}`
+                );
+                const newsData = await newsResponse.json();
+                if (newsData.error) {
+                    throw new Error(newsData.error);
+                }
+                newsData.slice(0, 5).forEach(item => {
+                    const newsItem = document.createElement('div');
+                    newsItem.className = 'news-item';
+                    newsItem.innerHTML = `
+                        <h3>${item.headline || 'No Title'}</h3>
+                        <p>${item.summary || 'No Summary'}</p>
+                        <p><a href="${item.url || '#'}" target="_blank">Read More</a></p>
+                    `;
+                    newsDiv.appendChild(newsItem);
+                });
+
+                loadingDiv.style.display = 'none';
+            } catch (error) {
+                errorDiv.textContent = 'Failed to load dashboard data: ' + error.message;
+                errorDiv.style.display = 'block';
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        // Initialize
         fetchOptionChain();
     </script>
 </body>
