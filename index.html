@@ -343,7 +343,7 @@
             Dashboard
         </h1>
         <div class="input-container">
-            <input type="text" id="symbolInput" placeholder="Symbol" value="TQQQ" maxlength="5">
+            <input type="text" id="symbolInput" placeholder="Symbol" value="TSLA" maxlength="5">
             <button onclick="fetchOptionChain()">Fetch</button>
             <div class="toggle-container">
                 <label class="toggle-label">Auto-Refresh</label>
@@ -615,7 +615,7 @@
                     const formattedDate = formatDate(expiration);
                     const tab = document.createElement('div');
                     tab.className = 'tab';
-                    if (index === 0) tab.classList.add('active');
+                    if (index === currentExpIndex) tab.classList.add('active');
                     tab.innerHTML = `${formattedDate}<span>${days} Days</span>`;
                     tab.onclick = () => {
                         currentExpIndex = index;
@@ -624,8 +624,7 @@
                     tabsDiv.appendChild(tab);
                 });
 
-                currentExpIndex = 0;
-                displayOptions(0);
+                displayOptions(currentExpIndex);
                 loadingDiv.style.display = 'none';
             } catch (error) {
                 errorDiv.textContent = 'Failed to fetch data: ' + error.message;
@@ -637,6 +636,7 @@
         async function refreshOptionTableData() {
             const symbol = document.getElementById('symbolInput').value.trim().toUpperCase();
             const errorDiv = document.getElementById('mainError');
+            const loadingDiv = document.getElementById('mainLoading');
 
             if (!symbol) {
                 errorDiv.textContent = 'Please enter a valid stock symbol.';
@@ -645,11 +645,13 @@
             }
 
             try {
+                loadingDiv.style.display = 'block';
                 const quoteResponse = await fetch(`${BASE_URL}/quote?symbol=${symbol}&token=${API_KEY}`);
                 const quoteData = await quoteResponse.json();
                 if (quoteData.error || !quoteData.c) {
                     errorDiv.textContent = 'Error fetching stock price.';
                     errorDiv.style.display = 'block';
+                    loadingDiv.style.display = 'none';
                     return;
                 }
                 currentPrice = quoteData.c;
@@ -660,6 +662,7 @@
                 if (data.error) {
                     errorDiv.textContent = data.error || 'Error fetching option chain data.';
                     errorDiv.style.display = 'block';
+                    loadingDiv.style.display = 'none';
                     return;
                 }
 
@@ -667,13 +670,39 @@
                 if (!allOptions.length) {
                     errorDiv.textContent = 'No option chain data available for this symbol.';
                     errorDiv.style.display = 'block';
+                    loadingDiv.style.display = 'none';
                     return;
                 }
 
+                // Ensure currentExpIndex is valid
+                if (currentExpIndex >= allOptions.length) {
+                    currentExpIndex = 0;
+                }
+
+                // Update tabs to reflect the current expiration index
+                const tabsDiv = document.getElementById('tabs');
+                tabsDiv.innerHTML = '';
+                allOptions.forEach((expData, index) => {
+                    const expiration = expData.expirationDate;
+                    const days = daysUntilExpiration(expiration);
+                    const formattedDate = formatDate(expiration);
+                    const tab = document.createElement('div');
+                    tab.className = 'tab';
+                    if (index === currentExpIndex) tab.classList.add('active');
+                    tab.innerHTML = `${formattedDate}<span>${days} Days</span>`;
+                    tab.onclick = () => {
+                        currentExpIndex = index;
+                        displayOptions(index);
+                    };
+                    tabsDiv.appendChild(tab);
+                });
+
                 displayOptions(currentExpIndex);
+                loadingDiv.style.display = 'none';
             } catch (error) {
                 errorDiv.textContent = 'Failed to fetch data: ' + error.message;
                 errorDiv.style.display = 'block';
+                loadingDiv.style.display = 'none';
             }
         }
 
@@ -794,7 +823,7 @@
         function toggleAutoRefresh() {
             const autoRefreshToggle = document.getElementById('autoRefreshToggle');
             if (autoRefreshToggle.checked) {
-                autoRefreshInterval = setInterval(refreshOptionTableData, 6000); // 6 seconds
+                autoRefreshInterval = setInterval(refreshOptionTableData, 20000); // 20 seconds
             } else {
                 if (autoRefreshInterval) {
                     clearInterval(autoRefreshInterval);
